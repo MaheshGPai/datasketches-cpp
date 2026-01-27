@@ -31,6 +31,33 @@ cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release
 cmake --build build/Release -t all test
 ```
 
+### Testing with libc++ Hardening (Issue #477)
+
+To test with C++17 and libc++ hardening enabled (catches undefined behavior like dereferencing empty optionals):
+
+**Prerequisites (Ubuntu/Linux):**
+```shell
+sudo apt-get install libc++-dev libc++abi-dev
+```
+
+**Build and run hardening tests:**
+```shell
+CC=clang CXX=clang++ cmake -S . -B build/hardening \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DBUILD_TESTS=ON \
+    -DCMAKE_CXX_FLAGS="-stdlib=libc++ -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" \
+    -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -lc++abi"
+cmake --build build/hardening --target hardening_test
+cd build/hardening && ./common/test/hardening_test "[deserialize_hardening]"
+```
+
+**Expected results:**
+- With buggy code (`optional<T> tmp; ... &*tmp`): **SIGABRT** with message about "optional operator* called on a disengaged value"
+- With fixed code (`std::aligned_storage`): **All tests passed (27 assertions in 7 test cases)**
+
+**Note:** The `hardening_test` executable compiles sketch headers with C++17, ensuring std::optional with hardening is used. Regular tests use C++11 with custom optional (no hardening).
+
 Building and running unit tests using CMake for Windows from the command line:
 
 ```shell
